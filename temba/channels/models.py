@@ -47,6 +47,7 @@ ZENVIA = 'ZV'
 SHAQODOON = 'SQ'
 VERBOICE = 'VB'
 CLICKATELL = 'CT'
+THECALLR = 'TC'
 
 SEND_URL = 'send_url'
 SEND_METHOD = 'method'
@@ -73,7 +74,8 @@ RELAYER_TYPE_CHOICES = ((ANDROID, _("Android")),
                         (EXTERNAL, _("External")),
                         (TWITTER, _("Twitter")),
                         (CLICKATELL, _("Clickatell")),
-                        (SHAQODOON, _("Shaqodoon")))
+                        (SHAQODOON, _("Shaqodoon")),
+                        (THECALLR, _("THECALLR")),)
 
 # how many outgoing messages we will queue at once
 SEND_QUEUE_DEPTH = 500
@@ -95,7 +97,8 @@ RELAYER_TYPE_CONFIG = {
     HUB9: dict(scheme='tel', max_length=1600),
     TWITTER: dict(scheme='twitter', max_length=140),
     SHAQODOON: dict(scheme='tel', max_length=1600),
-    CLICKATELL: dict(scheme='tel', max_length=420)
+    CLICKATELL: dict(scheme='tel', max_length=420),
+    THECALLR: dict(scheme='tel', max_length=3200),
 }
 
 TEMBA_HEADERS = {'User-agent': 'RapidPro'}
@@ -1233,6 +1236,54 @@ class Channel(SmartModel):
         ChannelLog.log_success(msg, "Successfully delivered message")
 
     @classmethod
+    def send_thecallr_message(cls, channel, msg, text):
+        """
+        Sends a message to TheCallR using digest authentication. Endpoint is https://api.thecallr.com/ body is JSON:
+             { id: external_id,
+               jsonrpc: 2.0
+               method: sms.send
+               params: ["from", "to", "text"] }
+        """
+        from temba.msgs.models import Msg, WIRED
+
+        url = 'https://api.thecallr.com/'
+        payload = dict(id=msg.id, jsonrpc='2.0', method='sms.send')
+        payload['args'] = [channel.address.lstrip('+'), msg.urn_path.lstrip('+'), text]
+        payload = json.dumps(payload)
+
+        try:
+            response = requests.post(url, payload, headers=TEMBA_HEADERS,
+                                     auth=(channel.config[USERNAME], channel.config[PASSWORD]))
+            json_response = response.json()
+            print json_response
+
+        except Exception as e:
+            raise SendException(unicode(e),
+                                method='POST',
+                                url=url,
+                                request=payload,
+                                response="",
+                                response_status=503)
+
+        if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
+            raise SendException("Got non-200 response [%d] from API" % response.status_code,
+                                method='POST',
+                                url=url,
+                                request=payload,
+                                response=response.text,
+                                response_status=response.status_code)
+
+        Msg.mark_sent(channel.config['r'], msg, WIRED)
+
+        ChannelLog.log_success(msg=msg,
+                               description="Successfully delivered",
+                               method='POST',
+                               url=url,
+                               request=payload,
+                               response=response.text,
+                               response_status=response.status_code)
+
+    @classmethod
     def send_clickatell_message(cls, channel, msg, text):
         """
         Sends a message to Clickatell, they expect a GET in the following format:
@@ -1345,7 +1396,8 @@ class Channel(SmartModel):
                       TWITTER: Channel.send_twitter_message,
                       VUMI: Channel.send_vumi_message,
                       SHAQODOON: Channel.send_shaqodoon_message,
-                      ZENVIA: Channel.send_zenvia_message}
+                      ZENVIA: Channel.send_zenvia_message,
+                      THECALLR: Channel.send_thecallr_message}
 
         # Check whether we need to throttle ourselves
         # This isn't an ideal implementation, in that if there is only one Channel with tons of messages

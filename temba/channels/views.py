@@ -30,7 +30,7 @@ from twython import Twython
 from uuid import uuid4
 from .models import Channel, SyncEvent, Alert, ChannelLog, SHAQODOON
 from .models import PASSWORD, RECEIVE, SEND, SEND_METHOD, SEND_URL, USERNAME, API_ID, CLICKATELL
-from .models import ANDROID, EXTERNAL, HUB9, INFOBIP, KANNEL, NEXMO, TWILIO, TWITTER, VUMI
+from .models import ANDROID, EXTERNAL, HUB9, INFOBIP, KANNEL, NEXMO, TWILIO, TWITTER, VUMI, THECALLR
 from .models import Channel, SyncEvent, Alert, ChannelLog
 from .models import PASSWORD, RECEIVE, SEND, CALL, ANSWER, SEND_METHOD, SEND_URL, USERNAME
 from .models import ANDROID, EXTERNAL, HUB9, INFOBIP, KANNEL, NEXMO, TWILIO, TWITTER, VUMI, VERBOICE, SHAQODOON
@@ -461,8 +461,8 @@ class ChannelCRUDL(SmartCRUDL):
     actions = ('list', 'claim', 'update', 'read', 'delete', 'search_numbers', 'claim_number',
                'claim_android', 'claim_africas_talking', 'claim_zenvia', 'configuration', 'claim_external',
                'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender', 'claim_infobip',
-               'claim_hub9', 'claim_vumi', 'create_caller', 'claim_kannel', 'claim_twitter', 'claim_shaqodoon',
-               'claim_verboice', 'claim_clickatell')
+               'claim_hub9', 'claim_vumi', 'create_caller', 'claim_kannel', 'claim_twitter', 'claim_thecallr',
+               'claim_shaqodoon', 'claim_verboice', 'claim_clickatell')
     permissions = True
 
     class AnonMixin(OrgPermsMixin):
@@ -969,9 +969,9 @@ class ChannelCRUDL(SmartCRUDL):
             number = forms.CharField(max_length=14, min_length=1, label=_("Number"),
                                      help_text=_("The phone number or short code you are connecting with country code. ex: +250788123124"))
             username = forms.CharField(label=_("Username"),
-                                       help_text=_("The username provided by the provider to use their API"))
+                                       help_text=_("The username given by your provider to use their API"))
             password = forms.CharField(label=_("Password"),
-                                       help_text=_("The password provided by the provider to use their API"))
+                                       help_text=_("The password given by your provider to use their API"))
 
             def clean_number(self):
                 number = self.data['number']
@@ -1013,6 +1013,10 @@ class ChannelCRUDL(SmartCRUDL):
     class ClaimInfobip(ClaimAuthenticatedExternal):
         title = _("Connect Infobip")
         channel_type = INFOBIP
+
+    class ClaimThecallr(ClaimAuthenticatedExternal):
+        title = _("Connect THECALLR")
+        channel_type = THECALLR
 
     class ClaimVerboice(ClaimAuthenticatedExternal):
         class VerboiceClaimForm(forms.Form):

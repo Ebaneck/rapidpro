@@ -1324,14 +1324,16 @@ class Org(SmartModel):
         recommended = 'android'
         if countrycode in NEXMO_RECOMMEND_COUNTRIES:
             recommended = 'nexmo'
-        if countrycode in [country[0] for country in TWILIO_SEARCH_COUNTRIES]:
+        elif countrycode in [country[0] for country in TWILIO_SEARCH_COUNTRIES]:
             recommended = 'twilio'
-        if countrycode == 'KE':
+        elif countrycode == 'KE':
             recommended = 'africastalking'
-        if countrycode == 'ID':
+        elif countrycode == 'ID':
             recommended = 'hub9'
-        if countrycode == 'SO':
+        elif countrycode == 'SO':
             recommended = 'shaqodoon'
+        elif countrycode == 'FR':
+            recommended = 'thecallr'
 
         return recommended
 
