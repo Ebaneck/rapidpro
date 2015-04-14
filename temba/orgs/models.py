@@ -84,6 +84,7 @@ NEXMO_SECRET = 'NEXMO_SECRET'
 NEXMO_UUID = 'NEXMO_UUID'
 
 ORG_LOW_CREDIT_THRESHOLD = 500
+ORG_LOW_CREDIT_THRESHOLD_MULTIPLIER = .10
 
 # cache keys and TTLs
 ORG_LOCK_KEY = 'org:%d:lock:%s'
@@ -965,7 +966,26 @@ class Org(SmartModel):
             return None
 
     def has_low_credits(self):
-        return self.get_credits_remaining() <= ORG_LOW_CREDIT_THRESHOLD
+        """
+        Returns whether this organization has low credits. We define this as either having only 10%
+        of active topups remaining or the number of remaining credits is lower than 500
+        :return:
+        """
+        # get total # of credits for active topups
+        active_credits = self.topups.filter(is_active=True, expires_on__gte=timezone.now()).aggregate(Sum('credits')).get('credits__sum')
+        active_credits = active_credits if active_credits else 0
+
+        remaining_credits = self.get_credits_remaining()
+        return remaining_credits <= ORG_LOW_CREDIT_THRESHOLD or remaining_credits < active_credits * ORG_LOW_CREDIT_THRESHOLD_MULTIPLIER
+
+
+    def has_expiring_credits(self):
+        """
+        Returns whether this user is about to run out of credits due to them expiring in the next 30 days
+        """
+        # we just return whether there are credits that will still be active in 30 days
+        return not self.topups.filter(is_active=True, credits__gt=F('used'), expires_on__gte=timezone.now() + timedelta(days=30)).exists()
+
 
     def get_credits_total(self):
         """

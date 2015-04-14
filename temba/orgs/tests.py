@@ -557,6 +557,27 @@ class OrgTest(TembaTest):
             self.assertEquals(32, self.org.get_credits_used())
             self.assertEquals(-1, self.org.get_credits_remaining())
 
+        # going to our inbox should have a warning that we are out of credits
+        self.login(self.admin)
+        response = self.client.get(reverse('msgs.msg_inbox'))
+        self.assertContains(response, "out of credits")
+
+        # ok, let's give ourselves more credits again, shouldn't see the message
+        mega_topup.expires_on = timezone.now() + relativedelta(days=45)
+        mega_topup.save()
+        self.org.update_caches(OrgEvent.topup_updated, None)
+
+        response = self.client.get(reverse('msgs.msg_inbox'))
+        self.assertNotContains(response, "out of credits")
+
+        # finally, make the topup expire in two weeks, should get a warning
+        mega_topup.expires_on = timezone.now() + relativedelta(days=14)
+        mega_topup.save()
+        self.org.update_caches(OrgEvent.topup_updated, None)
+
+        response = self.client.get(reverse('msgs.msg_inbox'))
+        self.assertContains(response, "expire soon")
+
     def test_twilio_connect(self):
         connect_url = reverse("orgs.org_twilio_connect")
 
