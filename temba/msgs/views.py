@@ -803,7 +803,7 @@ class MsgCRUDL(SmartCRUDL):
             return r'^%s/%s/(?P<label_id>\d+)/$' % (path, action)
 
         def derive_label(self):
-            return Label.user_all.get(pk=self.kwargs['label_id'])
+            return Label.user_objects.get(pk=self.kwargs['label_id'])
 
         def get_queryset(self, **kwargs):
             qs = super(MsgCRUDL.Filter, self).get_queryset(**kwargs)
@@ -820,7 +820,7 @@ class BaseLabelForm(forms.ModelForm):
             raise forms.ValidationError("Name must not be blank or begin with punctuation")
 
         existing_id = self.existing.pk if self.existing else None
-        if Label.user_all.filter(org=self.org, name__iexact=name).exclude(pk=existing_id).exists():
+        if Label.user_objects.filter(org=self.org, name__iexact=name).exclude(pk=existing_id).exists():
             raise forms.ValidationError("Name must be unique")
 
         return name
@@ -912,6 +912,9 @@ class LabelCRUDL(SmartCRUDL):
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         success_url = 'id@msgs.msg_filter'
         success_message = ''
+
+        def get_queryset(self):
+            return Label.user_objects.filter(org=self.request.user.get_org())
 
         def get_form_kwargs(self):
             kwargs = super(LabelCRUDL.Update, self).get_form_kwargs()

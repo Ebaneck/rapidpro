@@ -1380,14 +1380,21 @@ class Call(SmartModel):
 STOP_WORDS = 'a,able,about,across,after,all,almost,also,am,among,an,and,any,are,as,at,be,because,been,but,by,can,cannot,could,dear,did,do,does,either,else,ever,every,for,from,get,got,had,has,have,he,her,hers,him,his,how,however,i,if,in,into,is,it,its,just,least,let,like,likely,may,me,might,most,must,my,neither,no,nor,not,of,off,often,on,only,or,other,our,own,rather,said,say,says,she,should,since,so,some,than,that,the,their,them,then,there,these,they,this,tis,to,too,twas,us,wants,was,we,were,what,when,where,which,while,who,whom,why,will,with,would,yet,you,your'.split(',')
 
 
-class UserFolderManager(models.Manager):
-    def get_queryset(self):
-        return super(UserFolderManager, self).get_queryset().filter(label_type=Label.USER_FOLDER)
+class LabelManager(models.Manager):
+    """
+    Label manager which allows for easy filtering by label type
+    """
+    def __init__(self, label_types, exclude=False):
+        super(LabelManager, self).__init__()
+        self.label_types = label_types
+        self.exclude = exclude
 
-
-class UserLabelManager(models.Manager):
     def get_queryset(self):
-        return super(UserLabelManager, self).get_queryset().filter(label_type=Label.USER_LABEL)
+        qs = super(LabelManager, self).get_queryset()
+        if self.exclude:
+            return qs.exclude(label_type__in=self.label_types)
+        else:
+            return qs.filter(label_type__in=self.label_types)
 
 
 class Label(TembaModel, SmartModel):
@@ -1395,10 +1402,22 @@ class Label(TembaModel, SmartModel):
     Labels represent both user defined labels and folders of labels. User defined labels that can be applied to messages
     much the same way labels or tags apply to messages in web-based email services.
     """
+    SYSTEM_INBOX = 'I'
+    SYSTEM_FLOWS = 'W'
+    SYSTEM_ARCHIVED = 'A'
+    SYSTEM_OUTBOX = 'O'
+    SYSTEM_SENT = 'S'
+    SYSTEM_FAILED = 'X'
     USER_FOLDER = 'F'
     USER_LABEL = 'L'
 
-    TYPE_CHOICES = ((USER_FOLDER, "User Defined Folder"),
+    TYPE_CHOICES = ((SYSTEM_INBOX, "Inbox"),
+                    (SYSTEM_FLOWS, "Flows"),
+                    (SYSTEM_ARCHIVED, "Archived"),
+                    (SYSTEM_OUTBOX, "Outbox"),
+                    (SYSTEM_SENT, "Sent"),
+                    (SYSTEM_FAILED, "Failed"),
+                    (USER_FOLDER, "User Defined Folder"),
                     (USER_LABEL, "User Defined Label"))
 
     org = models.ForeignKey(Org)
@@ -1409,13 +1428,17 @@ class Label(TembaModel, SmartModel):
 
     label_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=USER_LABEL, help_text=_("Label type"))
 
+    count = models.PositiveIntegerField(default=0, help_text=_("Total number of messages with this label"))
+
     visible_count = models.PositiveIntegerField(default=0,
                                                 help_text=_("Number of non-archived messages with this label"))
 
     # define some custom managers to do the filtering of label types for us
-    user_all = models.Manager()
-    user_folders = UserFolderManager()
-    user_labels = UserLabelManager()
+    all_objects = models.Manager()
+    system_labels = LabelManager((USER_FOLDER, USER_LABEL), exclude=True)
+    user_objects = LabelManager((USER_FOLDER, USER_LABEL))
+    user_folders = LabelManager((USER_FOLDER,))
+    user_labels = LabelManager((USER_LABEL,))
 
     @classmethod
     def get_or_create(cls, org, user, name, folder=None):
@@ -1452,16 +1475,16 @@ class Label(TembaModel, SmartModel):
         """
         Gets top-level user labels and folders, with children pre-fetched and ordered by name
         """
-        qs = Label.user_all.filter(org=org).order_by('name')
+        qs = Label.all_objects.filter(org=org).order_by('name')
         qs = qs.filter(Q(label_type=cls.USER_LABEL, folder=None) | Q(label_type=cls.USER_FOLDER))
 
-        children_prefetch = Prefetch('children', queryset=Label.user_all.order_by('name'))
+        children_prefetch = Prefetch('children', queryset=Label.all_objects.order_by('name'))
 
         return qs.select_related('folder').prefetch_related(children_prefetch)
 
     @classmethod
     def is_valid_name(cls, name):
-        return name.strip() and name[0] not in ('+', '-', '@')
+        return name.strip() and name[0] not in ('+', '-', '@', '.')
 
     def filter_messages(self, queryset):
         if self.is_folder():
@@ -1474,7 +1497,7 @@ class Label(TembaModel, SmartModel):
 
     def get_visible_count(self):
         """
-        Returns the count of visible, non-test message tagged with this label
+        Returns the count of visible messages tagged with this user label
         """
         if self.is_folder():
             raise ValueError("Message counts are not tracked for user folders")
