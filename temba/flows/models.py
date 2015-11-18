@@ -1216,12 +1216,12 @@ class Flow(TembaModel, SmartModel):
             elif msg.channel:
                 channel_context = msg.channel.build_message_context()
         elif contact:
-            message_context = dict(__default__='', contact=contact_context)
+            message_context = dict(contact=contact_context)
         else:
-            message_context = dict(__default__='')
+            message_context = dict()
 
         run = self.runs.filter(contact=contact).order_by('-created_on').first()
-        run_context = dict(__default__='')
+        run_context = dict()
         if run:
             run_context.update(run.field_dict())
 
@@ -2958,12 +2958,7 @@ class FlowRun(models.Model):
         self.save(update_fields=['fields'])
 
     def field_dict(self):
-        if self.fields:
-            extra = json.loads(self.fields)
-            extra['__default__'] = ", ".join("%s: %s" % (_, extra[_]) for _ in sorted(extra.keys()))
-            return extra
-        else:
-            return dict()
+        return json.loads(self.fields) if self.fields else {}
 
     def is_completed(self):
         """
