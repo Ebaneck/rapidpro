@@ -98,8 +98,22 @@ class Command(BaseCommand): # pragma: no cover
         # for each run, create our step
         for completed in completed_runs:
             run = contact_to_run[completed['contact_uuid']]
-            rule = category_to_rule[completed.get('category', "All Responses").lower()]
-            left_on = json_date_to_datetime(completed['send_date'])
+            category = completed.get('category', "All Responses")
+            if not category:
+                continue
+
+            # remap 'other' to 'others' if it exists as an option
+            if 'others' in category_to_rule and category == 'other':
+                category = 'Others'
+
+            rule = category_to_rule[category.lower()]
+
+            # fix dates that don't contain millis: 2012-06-14T13:03:28Z to 2012-06-14T13:03:28.000Z
+            send_date = completed['send_date']
+            if send_date.find('.') <= 0:
+                send_date = send_date[:-1] + ".000Z"
+
+            left_on = json_date_to_datetime(send_date)
 
             step = FlowStep.objects.create(run=run,
                                            contact=run.contact,
@@ -145,8 +159,18 @@ class Command(BaseCommand): # pragma: no cover
             flow_definition['entry'] = ruleset_uuid
             flow_definition['rule_sets'][0]['uuid'] = ruleset_uuid
             flow_definition['rule_sets'][0]['y'] = 250
+
+            vetted_rules = []
             for rule in flow_definition['rule_sets'][0]['rules']:
                 rule['uuid'] = str(uuid4())
+
+                # remap valid 'other' cases to 'others'
+                if rule['category']['eng'].lower() == 'other' and rule['test']['type'] != 'true':
+                    rule['category']['eng'] = 'Others'
+
+                vetted_rules.append(rule)
+
+            flow_definition['rule_sets'][0]['rules'] = vetted_rules
 
             # remove any actionsets
             actionset = flow_definition['action_sets'][0]
