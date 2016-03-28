@@ -2,9 +2,10 @@ from __future__ import unicode_literals
 
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
+from django.core.exceptions import ValidationError
 from smartmin.models import SmartModel
 from uuid import uuid4
-
+import json
 
 def generate_uuid():
     return unicode(uuid4())
@@ -53,3 +54,17 @@ class ChunkIterator(object):
 
     def next(self):
         return self._generator.next()
+
+
+def validate_json(value):
+    """
+    Simple validation method for use in forms / models to validate the value is either empty
+    or valid JSON.
+    """
+    if value is None or not len(value):
+        return
+
+    try:
+        json.loads(value)
+    except Exception:
+        raise ValidationError(_("\"%(value)s\" is not valid JSON"), params=dict(value=value))

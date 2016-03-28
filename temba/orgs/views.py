@@ -37,6 +37,7 @@ from temba.nexmo import NexmoClient
 from temba.orgs.models import get_stripe_credentials
 from temba.utils import analytics, build_json_response, languages
 from temba.utils.middleware import disable_middleware
+from temba.utils.models import validate_json
 from timezones.forms import TimeZoneField
 from twilio import TwilioRestException
 from twilio.rest import TwilioRestClient
@@ -755,7 +756,9 @@ class OrgCRUDL(SmartCRUDL):
         def get_credits(self, obj):
             if not obj.credits:
                 obj.credits = 0
-            return "<div class='num-credits'>%d</div>" % obj.credits
+
+            return "<a href=\"%s?org=%d\"><div class='num-credits'>%d</div></a>" % \
+                (reverse('orgs.topup_manage'), obj.id, obj.credits)
 
         def get_owner(self, obj):
             owner = obj.latest_admin()
@@ -802,11 +805,25 @@ class OrgCRUDL(SmartCRUDL):
             surveyors = forms.ModelMultipleChoiceField(User.objects.all(), required=False)
             administrators = forms.ModelMultipleChoiceField(User.objects.all(), required=False)
 
+            config = forms.CharField(validators=[validate_json], required=False, widget=forms.Textarea)
+            webhook = forms.CharField(validators=[validate_json], required=False, widget=forms.Textarea)
+
             class Meta:
                 model = Org
                 fields = '__all__'
 
         form_class = OrgUpdateForm
+
+        def derive_initial(self):
+            initial = super(OrgCRUDL.Update, self).derive_initial()
+
+            if not initial.get('config'):
+                initial['config'] = '{}'
+
+            if not initial.get('webhook'):
+                initial['webhook'] = '{}'
+
+            return initial
 
         def get_success_url(self):
             return reverse('orgs.org_update', args=[self.get_object().pk])
