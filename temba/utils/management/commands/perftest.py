@@ -63,7 +63,7 @@ DB_TIME_LIMITS = (0.5, 1)
 NUM_QUERY_LIMITS = (50, 100)
 
 
-class Command(BaseCommand):  # pragma: no cover
+class Command(BaseCommand):
     help = "Checks access and index usage of views"
 
     def add_arguments(self, parser):
