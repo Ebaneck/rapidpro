@@ -8,12 +8,16 @@ import pytz
 from datetime import datetime, time
 from decimal import Decimal
 from django.conf import settings
+from django.core.management import call_command, CommandError
 from django.core.paginator import Paginator
+from django.test import TestCase
 from django.utils import timezone
 from temba_expressions.evaluator import EvaluationContext, DateStyle
 from mock import patch
 from redis_cache import get_redis_connection
 from temba.contacts.models import Contact
+from temba.msgs.models import Msg
+from temba.orgs.models import Org
 from temba.tests import TembaTest
 from xlrd import open_workbook
 from .cache import get_cacheable_result, get_cacheable_attr, incrby_existing
@@ -773,3 +777,16 @@ class TableExporterTest(TembaTest):
 
         self.assertEquals(67000 + 2 - 65536, sheet2.nrows)
         self.assertEquals(32, sheet2.ncols)
+
+
+class CommandsTest(TestCase):
+    def test_maketestdb(self):
+        call_command('maketestdb', num_orgs=2, num_contacts=4, num_messages=5)
+
+        self.assertEqual(Org.objects.count(), 2)
+        self.assertEqual(Contact.objects.count(), 4)
+        self.assertEqual(Msg.all_messages.count(), 5)
+
+        # check can't be run again on a now non-empty database
+        with self.assertRaises(CommandError):
+            call_command('maketestdb', num_orgs=2, num_contacts=4, num_messages=5)
