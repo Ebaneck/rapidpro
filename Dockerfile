@@ -49,7 +49,7 @@ RUN cd /home/app/rapidpro \
     && apt-get install -y libncurses5-dev \
     && pip install -r pip-freeze.txt
 
-RUN rm /bin/sh && ln -s /bin/bash /bin/sh
+RUN /bin/bash -c "source /usr/local/bin/virtualenvwrapper.sh"
 
 RUN cd /home/app/rapidpro \
     && source env/bin/activate \
