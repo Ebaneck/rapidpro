@@ -45,6 +45,7 @@ ADD . /home/app/rapidpro
 RUN cd /home/app/rapidpro \
     && cp temba/settings.py.dev temba/settings.py \
     && pip install virtualenv \
+    && pip install virtualenvwrapper \
     && virtualenv env \
     && apt-get install -y libncurses5-dev \
     && pip install -r pip-freeze.txt
