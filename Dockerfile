@@ -50,6 +50,7 @@ RUN cd /home/app/rapidpro \
     && pip install -r pip-freeze.txt
 
 RUN cd /home/app/rapidpro \
+    && source env/bin/activate \
     && python manage.py syncdb
 
 # Setup the virtualenv and install the files
