@@ -5,7 +5,7 @@ MAINTAINER James Oloo Onyango <jamesony@thoughtworks.com>
 # RUN export DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y openssh-server tar supervisor wget build-essential python python-dev curl postgresql postgresql-contrib libpq-dev python-pip git
 RUN mkdir -p /var/lock/apache2 /var/run/apache2 /var/run/sshd /var/log/supervisor
-COPY supervisor/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 RUN echo "root:password" | chpasswd  # need a password for ssh
 RUN sed -i 's/PermitRootLogin without-password/PermitRootLogin yes/' /etc/ssh/sshd_config
